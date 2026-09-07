@@ -2,23 +2,40 @@
 
 **JUST A RATHER VERY INTELLIGENT SYSTEM**
 
-A modular, voice-first personal AI assistant for Windows 11 first, with future macOS/Linux portability. The project is intentionally built in phases so every layer remains testable and replaceable.
+A modular, text-first personal AI assistant for Windows 11 first, with future voice and macOS/Linux portability. The project is intentionally built in phases so every layer remains testable and replaceable.
 
-## Current status: Phase 1 — foundation
+## Current status: text-first Phase 3
 
 Implemented:
 
 - Typed runtime configuration via Pydantic Settings.
 - Async in-process event bus.
 - Central permission model with safe/normal/destructive/critical levels.
-- Explicit tool specification and registry.
-- Orchestrator skeleton with honest `not_implemented` responses.
-- Runnable terminal interface (`help`, `status`, `exit`).
-- Structured console logging.
-- Foundational pytest coverage.
-- Architecture and security boundaries documented.
+- Explicit tool specification, registry, and permission-gated dispatcher.
+- Provider-neutral LLM interface with offline mock provider and optional Anthropic/Claude adapter.
+- Configurable JARVIS personality and response style.
+- Text conversation sessions.
+- HTTP text API with health endpoint.
+- Safe calculator tool using a restricted AST evaluator.
+- Sandboxed file reading/search limited to the configured JARVIS data directory.
+- Basic local system information tool.
+- Terminal text interface.
+- Tests for tool safety, filesystem boundaries, permissions, and text sessions.
 
-Not yet implemented: voice I/O, LLM provider calls, browser/computer control, memory, agents, web research, vision, smart home, telemetry HUD, reminders, and proactive behavior.
+Not yet implemented: microphone, wake word, VAD, STT/TTS, browser automation, unrestricted computer control, persistent memory, background agents, web research, vision, smart-home integration, telemetry HUD, reminders, and proactive behavior.
+
+## Text commands
+
+The terminal and HTTP text service support conversational input plus:
+
+```text
+calculate 6 * 7
+system info
+find files *.txt
+read file notes/example.txt
+```
+
+File operations are restricted to the configured `JARVIS_DATA_DIR`/`data_dir`. There is no unrestricted shell execution in this phase.
 
 ## Development
 
@@ -34,11 +51,16 @@ python -m app.main
 pytest
 ```
 
-If PowerShell execution policy blocks activation, run the module with the virtual environment's Python directly instead.
+For the optional Claude adapter:
 
-## Configuration
+```powershell
+python -m pip install -e ".[llm]"
+$env:JARVIS_LLM_PROVIDER="anthropic"
+$env:JARVIS_LLM_MODEL="<configured-model>"
+$env:JARVIS_ANTHROPIC_API_KEY="<local-secret>"
+```
 
-Runtime settings use the `JARVIS_` environment prefix. Secrets belong only in local `.env` files or a future secret manager; never commit credentials.
+Never commit real credentials.
 
 ## Design principles
 
@@ -46,7 +68,7 @@ Runtime settings use the `JARVIS_` environment prefix. Secrets belong only in lo
 2. **Permission-first:** the model cannot bypass destructive-action confirmation.
 3. **Observable:** log state and tool activity without exposing private chain-of-thought.
 4. **Honest:** unavailable capabilities return explicit not-implemented states.
-5. **Interruptible:** later voice/task layers must support cancellation.
-6. **Local-first where practical:** computer, files and telemetry should remain under explicit user control.
+5. **Local-first:** filesystem and system inspection stay under explicit application boundaries.
+6. **No unrestricted shell:** command execution will require a later, separately designed permission layer.
 
-See [`docs/architecture.md`](docs/architecture.md) for the current boundary map.
+See `docs/architecture.md` for the boundary map.
