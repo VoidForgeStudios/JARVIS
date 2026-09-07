@@ -1,22 +1,43 @@
 from __future__ import annotations
 
+import json
+
 from app.brain.llm import LLMProvider, LLMRequest
 from app.brain.prompts import build_system_prompt
 from app.brain.router import IntentKind, IntentRouter
 from app.core.events import Event, EventBus
 from app.text.session import TextSessionStore
+from app.tools.dispatcher import ToolDispatcher
 
 
 class TextService:
-    """Text-only application service. Voice and audio are deliberately out of scope."""
+    """Text-only application service with a small, permission-gated safe tool set."""
 
-    def __init__(self, provider: LLMProvider, settings, event_bus: EventBus) -> None:
+    def __init__(self, provider: LLMProvider, settings, event_bus: EventBus, dispatcher: ToolDispatcher | None = None) -> None:
         self.provider = provider
         self.router = IntentRouter()
         self.sessions = TextSessionStore()
         self.settings = settings
         self.system_prompt = build_system_prompt(settings)
         self.event_bus = event_bus
+        self.dispatcher = dispatcher
+
+    async def _tool_request(self, text: str) -> str:
+        lowered = text.lower()
+        try:
+            if lowered.startswith("calculate "):
+                return await self.dispatcher.execute("calculator", expression=text[10:].strip())
+            if lowered.startswith("read file "):
+                return await self.dispatcher.execute("read_file", path=text[10:].strip())
+            if lowered.startswith("find files"):
+                pattern = text[len("find files"):].strip() or "*"
+                return await self.dispatcher.execute("find_files", pattern=pattern)
+            if lowered == "system info":
+                result = await self.dispatcher.execute("system_info")
+                return json.dumps(result, indent=2, sort_keys=True)
+        except (FileNotFoundError, PermissionError, ValueError) as exc:
+            return f"Tool request blocked: {exc}"
+        return "That tool is not enabled in the text-only phase."
 
     async def chat(self, session_id: str, text: str) -> str:
         normalized = text.strip()
@@ -27,6 +48,10 @@ class TextService:
         await self.event_bus.publish(Event("text.received", {"session_id": session_id, "intent": route.kind.value}))
         if route.kind is IntentKind.UNKNOWN:
             return "I didn't catch a request."
+        if route.kind is IntentKind.TOOL_REQUEST:
+            if self.dispatcher is None:
+                return "Tools are not configured for this runtime."
+            return await self._tool_request(normalized)
         if route.kind is not IntentKind.CONVERSATION:
             return "That capability is not enabled in the text-only phase yet."
 
