@@ -44,25 +44,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     api_token = settings.api_token.get_secret_value() if settings.api_token else None
 
-    async def require_api_token(request: Request) -> None:
-        # Local-only deployments may leave the token unset. Any remotely exposed
-        # deployment should set JARVIS_API_TOKEN.
-        if not api_token:
-            return
-        authorization = request.headers.get("Authorization", "")
-        if authorization != f"Bearer {api_token}":
-            raise HTTPException(status_code=401, detail="Invalid or missing API token")
-
-    app.include_router(TextAPI(service, auth=api_token is not None).router())
-
     @app.middleware("http")
     async def protect_api(request: Request, call_next):
+        # Local-only deployments may leave the token unset. Any remotely exposed
+        # deployment should set JARVIS_API_TOKEN.
         if api_token and request.url.path.startswith("/api/"):
-            try:
-                await require_api_token(request)
-            except HTTPException as exc:
-                return await _json_error(exc.status_code, exc.detail)
+            authorization = request.headers.get("Authorization", "")
+            if authorization != f"Bearer {api_token}":
+                return await _json_error(401, "Invalid or missing API token")
         return await call_next(request)
+
+    app.include_router(TextAPI(service).router())
 
     @app.get("/health")
     async def health() -> dict[str, str]:
