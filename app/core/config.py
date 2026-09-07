@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     data_dir: Path = Field(default=Path("data"))
     require_confirmation_for_destructive: bool = True
 
+    # Remote web-console security. Keep the token in .env, never in source control.
+    api_token: SecretStr | None = None
+    # Comma-separated browser origins, e.g. https://voidforgestudios.github.io
+    cors_origins: str = ""
+
     def ensure_data_dir(self) -> Path:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         return self.data_dir
+
+    def allowed_cors_origins(self) -> list[str]:
+        return [origin.strip().rstrip("/") for origin in self.cors_origins.split(",") if origin.strip()]
