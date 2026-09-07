@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,9 +17,13 @@ class Settings(BaseSettings):
     app_name: str = "JARVIS"
     user_name: str = "User"
     user_title: str = ""
+    personality: str = "calm, intelligent, concise, slightly witty, professional, helpful"
     response_style: str = "concise"
-    llm_provider: str = "anthropic"
-    llm_model: str = ""
+    llm_provider: str = "mock"
+    llm_model: str = "mock-1"
+    anthropic_api_key: SecretStr | None = None
+    llm_temperature: float = Field(default=0.2, ge=0.0, le=1.0)
+    llm_max_tokens: int = Field(default=1024, ge=1, le=16384)
     log_level: str = "INFO"
     data_dir: Path = Field(default=Path("data"))
     require_confirmation_for_destructive: bool = True
