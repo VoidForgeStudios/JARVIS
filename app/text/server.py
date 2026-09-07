@@ -6,6 +6,8 @@ from app.brain.providers import build_provider
 from app.core.config import Settings
 from app.core.events import EventBus
 from app.core.permissions import PermissionManager
+from app.memory.database import MemoryDatabase
+from app.memory.service import MemoryService
 from app.text.api import TextAPI
 from app.text.service import TextService
 from app.tools.calculator import CalculatorTool
@@ -26,14 +28,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     registry.register(FindDataFilesTool(settings.data_dir))
     registry.register(SystemInfoTool())
     dispatcher = ToolDispatcher(registry, permissions)
+    memory = MemoryService(MemoryDatabase(settings.data_dir))
     provider = build_provider(settings)
-    service = TextService(provider, settings, event_bus, dispatcher)
+    service = TextService(provider, settings, event_bus, dispatcher, memory)
 
-    app = FastAPI(title=settings.app_name, version="0.4.0")
+    app = FastAPI(title=settings.app_name, version="0.5.0")
     app.include_router(TextAPI(service).router())
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "mode": "text-only", "provider": provider.name}
+        return {"status": "ok", "mode": "text-only", "provider": provider.name, "memory": "sqlite"}
 
     return app
