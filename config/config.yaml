@@ -1,0 +1,9 @@
+app_name: JARVIS
+user_name: User
+user_title: ""
+response_style: concise
+llm_provider: anthropic
+llm_model: ""
+log_level: INFO
+data_dir: data
+require_confirmation_for_destructive: true
